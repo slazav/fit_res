@@ -7,19 +7,11 @@ all: fit_res
 fit_res: fit_res.o fit.o
 fit_res.o: fit.h
 
+bindir ?= /usr/bin
+install:
+	mkdir -p ${bindir}
+	install -m755 fit_res ${bindir}
 
 clean:
 	rm -f fit_res *.o
-
-
-
-#test: fit_res_test
-#	./fit_res_test > fit_res.dat
-#	./plot
-#
-#fit_res_test: fit_res_test.o fit.o
-#fit_res_test.o: fit.h
-#
-#
-#split_sweeps: split_sweeps.o
 
