@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
-
+#include <cstring>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
@@ -31,16 +31,52 @@ graphene_filter script.
 
 */
 
+
+void
+print_help() {
+  std::cerr <<
+  "Usage: fit_res [options] < file\n"
+  "Options\n"
+  " --overload (1|0)   -- use overload detection, default 1\n"
+  " --pars (6|8)       -- number of parameters, default 8\n"
+  " --show_zeros (1|0) -- write trailing zeros for unused parameters, default 0\n"
+  ;
+}
+
 int
 main (int argc, char *argv[]) {
 
-  // Note: graphene_filter can add command line arguments!
+  // default parameters
+  bool overload_detection = true;
+  bool show_zeros = false;
+  size_t p = 8;
+
+
+  // parse command-line options
+  if (argc%2 != 1) {
+    print_help(); return 1;
+  }
+  for (int i=1; i<argc-1; i+=2) {
+    if (strcasecmp(argv[i], "--overload") == 0)
+      overload_detection = atoi(argv[i+1]);
+    else
+    if (strcasecmp(argv[i], "--pars") == 0)
+      p = atoi(argv[i+1]);
+    else
+    if (strcasecmp(argv[i], "--show_zeros") == 0)
+      show_zeros = atoi(argv[i+1]);
+    else {
+      print_help(); return 1;
+    }
+  }
+
+  if (p != 6 && p != 8) {
+    print_help(); return 1;
+  }
+
 
   std::vector<double> freq, real, imag, time;
-  std::vector<double> pars(6), pars_e(6);
-
-  //
-  bool overload_detection = true;
+  std::vector<double> pars(MAXPARS), pars_e(MAXPARS);
 
   double maxx=0, maxy=0;
   while (!std::cin.eof()){
@@ -60,15 +96,15 @@ main (int argc, char *argv[]) {
     if (fabs(y)>maxy) maxy=fabs(y);
   }
 
-  if (freq.size()<6) return 0;
+  if (freq.size()<p) return 0;
 
   // initial guess:
-  fit_res_init(freq.size(),
+  fit_res_init(freq.size(), p,
      freq.data(), real.data(), imag.data(),
      pars.data());
 
   // fit
-  double func_e = fit_res(freq.size(),
+  double func_e = fit_res(freq.size(), p,
      freq.data(), real.data(), imag.data(),
      pars.data(), pars_e.data());
 
@@ -76,15 +112,15 @@ main (int argc, char *argv[]) {
   // overload detection (remove largest values and compare result)
   if (overload_detection) {
     std::vector<double> freq1, real1, imag1;
-    std::vector<double> pars1(pars), pars_e1(6);
+    std::vector<double> pars1(pars), pars_e1(MAXPARS);
     for (int i=0; i<freq.size(); i++){
       if (fabs(real[i]) > maxx*0.95 || fabs(imag[i]) > maxy*0.95) continue;
       freq1.push_back(freq[i]);
       real1.push_back(real[i]);
       imag1.push_back(imag[i]);
     }
-    if (freq1.size() >= 6) {
-      double func_e1 = fit_res(freq1.size(),
+    if (freq1.size() >= p) {
+      double func_e1 = fit_res(freq1.size(), p,
          freq1.data(), real1.data(), imag1.data(),
          pars1.data(), pars_e1.data());
       if (func_e1 < func_e) {
@@ -101,9 +137,12 @@ main (int argc, char *argv[]) {
             << std::fixed << " " << t
             << std::scientific
             << " " << func_e;
-  for (size_t i = 0; i<6; i++) {
+  for (size_t i = 0; i<p; i++) {
     std::cout << " " << pars[i]
               << " " << pars_e[i];
+  }
+  if (show_zeros) {
+    for (size_t i = p; i<MAXPARS; i++) std::cout << " 0 0";
   }
 
   std::cout << "\n";

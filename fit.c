@@ -6,6 +6,7 @@
 #include <gsl/gsl_multifit_nlinear.h>
 //#include <gsl/gsl_rng.h>
 //#include <gsl/gsl_randist.h>
+#include "fit.h"
 
 /********************************************************************/
 
@@ -21,10 +22,10 @@ struct data {
 
 /* model function:
 
-(X + iY) = (A + iB) + (C + iD)/(w0^2 - w^2 - iw*dw)
+(X + iY) = (A + iB) + (C + iD)/(w0^2 - w^2 - iw*dw)  +  (E + iF)*(w-w0)
 
-X(w) = A + (C*(w0^2-w^2) + D*w*dw) / ((w0^2-w^2)^2 + (w*dw)^2)
-Y(w) = B + (D*(w0^2-w^2) - C*w*dw) / ((w0^2-w^2)^2 + (w*dw)^2)
+X(w) = A + (C*(w0^2-w^2) + D*w*dw) / ((w0^2-w^2)^2 + (w*dw)^2)  +  E*(w-w0)
+Y(w) = B + (D*(w0^2-w^2) - C*w*dw) / ((w0^2-w^2)^2 + (w*dw)^2)  +  iF*(w-w0)
 
 */
 
@@ -37,6 +38,8 @@ func_f (const gsl_vector * x, void *params, gsl_vector * f) {
   double D = gsl_vector_get(x, 3);
   double w0 = gsl_vector_get(x, 4);
   double dw = gsl_vector_get(x, 5);
+  double E = (x->size >= 8) ? gsl_vector_get(x, 6) : 0.0;
+  double F = (x->size >= 8) ? gsl_vector_get(x, 7) : 0.0;
   size_t i;
 
   for (i = 0; i < d->n; ++i) {
@@ -47,8 +50,8 @@ func_f (const gsl_vector * x, void *params, gsl_vector * f) {
     double wa = w0*w0 - wi*wi;
     double wb = wi*dw;
     double z = wa*wa + wb*wb;
-    double X = A + (C*wa + D*wb)/z;
-    double Y = B + (D*wa - C*wb)/z;
+    double X = A + (C*wa + D*wb)/z + E*(wi-w0);
+    double Y = B + (D*wa - C*wb)/z + F*(wi-w0);
 
     gsl_vector_set(f, 2*i,   Xi - X);
     gsl_vector_set(f, 2*i+1, Yi - Y);
@@ -68,6 +71,8 @@ func_df (const gsl_vector * x, void *params, gsl_matrix * J) {
   double D = gsl_vector_get(x, 3);
   double w0 = gsl_vector_get(x, 4);
   double dw = gsl_vector_get(x, 5);
+  double E = (x->size >= 8) ? gsl_vector_get(x, 6) : 0.0;
+  double F = (x->size >= 8) ? gsl_vector_get(x, 7) : 0.0;
   size_t i;
 
   for (i = 0; i < d->n; ++i) {
@@ -83,15 +88,23 @@ func_df (const gsl_vector * x, void *params, gsl_matrix * J) {
       gsl_matrix_set(J, 2*i, 1, 0);
       gsl_matrix_set(J, 2*i, 2, -wa/z);
       gsl_matrix_set(J, 2*i, 3, -wb/z);
-      gsl_matrix_set(J, 2*i, 4, -2*C*w0/z + (C*wa+D*wb)/z/z * 4*wa*w0);
+      gsl_matrix_set(J, 2*i, 4, -2*C*w0/z + (C*wa+D*wb)/z/z * 4*wa*w0 - E);
       gsl_matrix_set(J, 2*i, 5, -D*wi/z   + (C*wa+D*wb)/z/z * 2*wb*wi);
+      if (x->size >= 8) {
+        gsl_matrix_set(J, 2*i, 6, w0-wi);
+        gsl_matrix_set(J, 2*i, 7, 0);
+      }
 
       gsl_matrix_set(J, 2*i+1, 0, 0);
       gsl_matrix_set(J, 2*i+1, 1, -1);
       gsl_matrix_set(J, 2*i+1, 2, wb/z);
       gsl_matrix_set(J, 2*i+1, 3, -wa/z);
-      gsl_matrix_set(J, 2*i+1, 4, -2*D*w0/z + (D*wa-C*wb)/z/z * 4*wa*w0);
+      gsl_matrix_set(J, 2*i+1, 4, -2*D*w0/z + (D*wa-C*wb)/z/z * 4*wa*w0 - F);
       gsl_matrix_set(J, 2*i+1, 5, +C*wi/z   + (D*wa-C*wb)/z/z * 2*wb*wi);
+      if (x->size >= 8) {
+        gsl_matrix_set(J, 2*i+1, 6, 0);
+        gsl_matrix_set(J, 2*i+1, 7, w0-wi);
+      }
   }
 
   return GSL_SUCCESS;
@@ -246,9 +259,10 @@ solve_system(gsl_vector *x, gsl_vector *xe, gsl_multifit_nlinear_fdf *fdf,
 // Find initial conditions by some trivial assumptions.
 
 void
-fit_res_init (const size_t n,
+fit_res_init (const size_t n, const size_t p,
          double * freq, double * real, double * imag,
-         double pars[6]) {
+         double pars[MAXPARS]) {
+
 
   // A,B - in the middle between first and last point:
   double A = (real[0] + real[n-1])/2;
@@ -281,22 +295,27 @@ fit_res_init (const size_t n,
   double D =  freq[imax]*dw*(real[imax]-A);
   double C = -freq[imax]*dw*(imag[imax]-B);
 
+  // E,F - slope of the line connecting first and line points
+  double E = (real[n-1] - real[0])/(freq[n-1] - freq[0]);
+  double F = (imag[n-1] - imag[0])/(freq[n-1] - freq[0]);
+
+  // fill parameters (always set 8 parameters)
   pars[0] = A;
   pars[1] = B;
   pars[2] = C;
   pars[3] = D;
   pars[4] = w0;
   pars[5] = dw;
+  pars[6] = E;
+  pars[7] = F;
 }
 
 /********************************************************************/
 // Fit resonance with Lorentzian curve
 double
-fit_res (const size_t n,
+fit_res (const size_t n, const size_t p,
          double * freq, double * real, double * imag,
-         double pars[6], double pars_e[6]) {
-
-  const size_t p = 6;    /* number of model parameters */
+         double pars[MAXPARS], double pars_e[MAXPARS]) {
 
   gsl_vector *f = gsl_vector_alloc(2*n);
   gsl_vector *x  = gsl_vector_alloc(p);
@@ -329,6 +348,8 @@ fit_res (const size_t n,
 
   for (i=0; i<p; i++) pars[i]  = gsl_vector_get(x, i);
   for (i=0; i<p; i++) pars_e[i] = gsl_vector_get(xe, i);
+  for (i=p; i<MAXPARS; i++) pars[i] = 0;
+  for (i=p; i<MAXPARS; i++) pars_e[i] = 0;
 
   gsl_vector_free(f);
   gsl_vector_free(x);
