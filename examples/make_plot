@@ -1,0 +1,50 @@
+#!/bin/sh -efu
+
+ifile=$1
+ofile=$2
+
+
+## fit and make gnuplot script
+cat $ifile | ../fit_res | {
+ read t0 e A Ae B Be C Ce D De f0 f0e df dfe E Ee F Fe
+
+cat > $ofile <<EOF
+#!/usr/bin/gnuplot
+
+file = "$ifile"
+
+A=$A
+B=$B
+C=$C
+D=$D
+f0=$f0
+df=$df
+t0=$t0
+E=${E:-0}
+F=${F:-0}
+
+X(f) = A + (C*(f0**2-f**2) + D*f*df) / ((f0**2-f**2)**2 + (f*df)**2) + E*(f-f0)
+Y(f) = B + (D*(f0**2-f**2) - C*f*df) / ((f0**2-f**2)**2 + (f*df)**2) + F*(f-f0)
+
+set nokey
+set samples 1000
+
+plot\
+  file using 2:(\$3-A) with points lc 3 pt 7 ps 1,\
+  file using 2:(\$4-B) with points lc 6 pt 7 ps 1,\
+  X(x)-A lc 0, Y(x)-B lc 0
+
+pause -1
+
+set parametric
+plot [f0-5*df:f0+5*df]\
+  file using 3:4 with points lc 2 pt 7 ps 1,\
+  X(t), Y(t) lc 0
+
+
+pause -1
+
+EOF
+}
+
+chmod 755 $ofile
