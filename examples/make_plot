@@ -1,11 +1,14 @@
 #!/bin/sh -efu
 
-ifile=$1
-ofile=$2
+# usage: make_plot <ifile> <ofile> [fit_res options]
 
+ifile=$1
+shift
+ofile=$1
+shift
 
 ## fit and make gnuplot script
-cat $ifile | ../fit_res | {
+cat $ifile | ../fit_res "$@" | {
  read t0 e A Ae B Be C Ce D De f0 f0e df dfe E Ee F Fe
 
 cat > $ofile <<EOF
