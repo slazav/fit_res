@@ -37,6 +37,7 @@ print_help() {
   std::cerr <<
   "Usage: fit_res [options] < file\n"
   "Options\n"
+  " --do_fit (1|0)     -- do fitting or stop after initial guess for parameters, default 1\n"
   " --overload (1|0)   -- use overload detection, default 1\n"
   " --pars (6|8)       -- number of parameters, default 8\n"
   " --show_zeros (1|0) -- write trailing zeros for unused parameters, default 0\n"
@@ -47,6 +48,7 @@ int
 main (int argc, char *argv[]) {
 
   // default parameters
+  bool do_fit = true;
   bool overload_detection = true;
   bool show_zeros = false;
   size_t p = 8;
@@ -57,6 +59,9 @@ main (int argc, char *argv[]) {
     print_help(); return 1;
   }
   for (int i=1; i<argc-1; i+=2) {
+    if (strcasecmp(argv[i], "--do_fit") == 0)
+      do_fit = atoi(argv[i+1]);
+    else
     if (strcasecmp(argv[i], "--overload") == 0)
       overload_detection = atoi(argv[i+1]);
     else
@@ -104,29 +109,31 @@ main (int argc, char *argv[]) {
      pars.data());
 
   // fit
-  double func_e = fit_res(freq.size(), p,
-     freq.data(), real.data(), imag.data(),
-     pars.data(), pars_e.data());
+  double func_e = 0;
+  if (do_fit) {
+    func_e = fit_res(freq.size(), p,
+       freq.data(), real.data(), imag.data(),
+       pars.data(), pars_e.data());
 
-
-  // overload detection (remove largest values and compare result)
-  if (overload_detection) {
-    std::vector<double> freq1, real1, imag1;
-    std::vector<double> pars1(pars), pars_e1(MAXPARS);
-    for (int i=0; i<freq.size(); i++){
-      if (fabs(real[i]) > maxx*0.95 || fabs(imag[i]) > maxy*0.95) continue;
-      freq1.push_back(freq[i]);
-      real1.push_back(real[i]);
-      imag1.push_back(imag[i]);
-    }
-    if (freq1.size() >= p) {
-      double func_e1 = fit_res(freq1.size(), p,
-         freq1.data(), real1.data(), imag1.data(),
-         pars1.data(), pars_e1.data());
-      if (func_e1 < func_e) {
-        pars.swap(pars1);
-        pars_e.swap(pars_e1);
-        func_e = func_e1;
+    // overload detection (remove largest values and compare result)
+    if (overload_detection) {
+      std::vector<double> freq1, real1, imag1;
+      std::vector<double> pars1(pars), pars_e1(MAXPARS);
+      for (int i=0; i<freq.size(); i++){
+        if (fabs(real[i]) > maxx*0.95 || fabs(imag[i]) > maxy*0.95) continue;
+        freq1.push_back(freq[i]);
+        real1.push_back(real[i]);
+        imag1.push_back(imag[i]);
+      }
+      if (freq1.size() >= p) {
+        double func_e1 = fit_res(freq1.size(), p,
+           freq1.data(), real1.data(), imag1.data(),
+           pars1.data(), pars_e1.data());
+        if (func_e1 < func_e) {
+          pars.swap(pars1);
+          pars_e.swap(pars_e1);
+          func_e = func_e1;
+        }
       }
     }
   }
