@@ -13,7 +13,10 @@
 /*
  Program reads resonance data (time, freq, x, y) from stdin,
  fits data with a Lorentzian function:
+   coordinate:
    (X + iY) = (A + iB) + (C + iD)/(w0^2 - w^2 - iw*dw)
+   speed:
+   (X + iY) = (A + iB) + i*w*(C + iD)/(w0^2 - w^2 - iw*dw)
 
  and prints a line with 14 values to stdout:
    - time -- center of the time range
@@ -39,6 +42,7 @@ print_help() {
   "Options\n"
   " --do_fit (1|0)     -- do fitting or stop after initial guess for parameters, default 1\n"
   " --overload (1|0)   -- use overload detection, default 1\n"
+  " --coord (1|0)      -- do coordinate or speed fitting, default 1\n"
   " --pars (6|8)       -- number of parameters, default 8\n"
   " --show_zeros (1|0) -- write trailing zeros for unused parameters, default 0\n"
   ;
@@ -50,8 +54,9 @@ main (int argc, char *argv[]) {
   // default parameters
   bool do_fit = true;
   bool overload_detection = true;
-  bool show_zeros = false;
+  bool coord  = true;
   size_t p = 8;
+  bool show_zeros = false;
 
 
   // parse command-line options
@@ -64,6 +69,9 @@ main (int argc, char *argv[]) {
     else
     if (strcasecmp(argv[i], "--overload") == 0)
       overload_detection = atoi(argv[i+1]);
+    else
+    if (strcasecmp(argv[i], "--coord") == 0)
+      coord = atoi(argv[i+1]);
     else
     if (strcasecmp(argv[i], "--pars") == 0)
       p = atoi(argv[i+1]);
@@ -106,14 +114,14 @@ main (int argc, char *argv[]) {
   // initial guess:
   fit_res_init(freq.size(), p,
      freq.data(), real.data(), imag.data(),
-     pars.data());
+     pars.data(), coord);
 
   // fit
   double func_e = 0;
   if (do_fit) {
     func_e = fit_res(freq.size(), p,
        freq.data(), real.data(), imag.data(),
-       pars.data(), pars_e.data());
+       pars.data(), pars_e.data(), coord);
 
     // overload detection (remove largest values and compare result)
     if (overload_detection) {
@@ -128,7 +136,7 @@ main (int argc, char *argv[]) {
       if (freq1.size() >= p) {
         double func_e1 = fit_res(freq1.size(), p,
            freq1.data(), real1.data(), imag1.data(),
-           pars1.data(), pars_e1.data());
+           pars1.data(), pars_e1.data(), coord);
         if (func_e1 < func_e) {
           pars.swap(pars1);
           pars_e.swap(pars_e1);

@@ -18,16 +18,8 @@ struct data {
   double *x;
   double *y;
   size_t n;
+  bool coord;
 };
-
-/* model function:
-
-(X + iY) = (A + iB) + (C + iD)/(w0^2 - w^2 - iw*dw)  +  (E + iF)*(w-w0)
-
-X(w) = A + (C*(w0^2-w^2) + D*w*dw) / ((w0^2-w^2)^2 + (w*dw)^2)  +  E*(w-w0)
-Y(w) = B + (D*(w0^2-w^2) - C*w*dw) / ((w0^2-w^2)^2 + (w*dw)^2)  +  iF*(w-w0)
-
-*/
 
 int
 func_f (const gsl_vector * x, void *params, gsl_vector * f) {
@@ -50,8 +42,16 @@ func_f (const gsl_vector * x, void *params, gsl_vector * f) {
     double wa = w0*w0 - wi*wi;
     double wb = wi*dw;
     double z = wa*wa + wb*wb;
-    double X = A + (C*wa + D*wb)/z + E*(wi-w0);
-    double Y = B + (D*wa - C*wb)/z + F*(wi-w0);
+
+    double X=0, Y=0;
+    if (d->coord) {
+      X = A + (C*wa + D*wb)/z + E*(wi-w0);
+      Y = B + (D*wa - C*wb)/z + F*(wi-w0);
+    }
+    else {
+      X = A - wi*(D*wa - C*wb)/z + E*(wi-w0);
+      Y = B + wi*(C*wa + D*wb)/z + F*(wi-w0);
+    }
 
     gsl_vector_set(f, 2*i,   Xi - X);
     gsl_vector_set(f, 2*i+1, Yi - Y);
@@ -84,26 +84,42 @@ func_df (const gsl_vector * x, void *params, gsl_matrix * J) {
       double wb = wi*dw;
       double z = wa*wa + wb*wb;
 
-      gsl_matrix_set(J, 2*i, 0, -1);
-      gsl_matrix_set(J, 2*i, 1, 0);
-      gsl_matrix_set(J, 2*i, 2, -wa/z);
-      gsl_matrix_set(J, 2*i, 3, -wb/z);
-      gsl_matrix_set(J, 2*i, 4, -2*C*w0/z + (C*wa+D*wb)/z/z * 4*wa*w0 - E);
-      gsl_matrix_set(J, 2*i, 5, -D*wi/z   + (C*wa+D*wb)/z/z * 2*wb*wi);
+      gsl_matrix_set(J, 2*i, 0, -1);  // -dX/dA
+      gsl_matrix_set(J, 2*i, 1, 0);   // -dX/dB
+      if (d->coord) {
+        gsl_matrix_set(J, 2*i, 2, -wa/z); // -dX/dC
+        gsl_matrix_set(J, 2*i, 3, -wb/z); // -dX/dD
+        gsl_matrix_set(J, 2*i, 4, -2*C*w0/z + (C*wa+D*wb)/z/z * 4*wa*w0 - E); // -dX/d(f0)
+        gsl_matrix_set(J, 2*i, 5, -D*wi/z   + (C*wa+D*wb)/z/z * 2*wb*wi);     // -dX/d(df)
+      }
+      else {
+        gsl_matrix_set(J, 2*i, 2, -wi*wb/z); // -dX/dC
+        gsl_matrix_set(J, 2*i, 3, +wi*wa/z); // -dX/dD
+        gsl_matrix_set(J, 2*i, 4, -wi*(-2*D*w0/z + (D*wa-C*wb)/z/z * 4*wa*w0) - E); // -dX/d(f0)
+        gsl_matrix_set(J, 2*i, 5, -wi*(+C*wi/z   + (D*wa-C*wb)/z/z * 2*wb*wi));     // -dX/d(df)
+      }
       if (x->size >= 8) {
-        gsl_matrix_set(J, 2*i, 6, w0-wi);
-        gsl_matrix_set(J, 2*i, 7, 0);
+        gsl_matrix_set(J, 2*i, 6, w0-wi); // -dX/dE
+        gsl_matrix_set(J, 2*i, 7, 0);     // -dX/dF
       }
 
-      gsl_matrix_set(J, 2*i+1, 0, 0);
-      gsl_matrix_set(J, 2*i+1, 1, -1);
-      gsl_matrix_set(J, 2*i+1, 2, wb/z);
-      gsl_matrix_set(J, 2*i+1, 3, -wa/z);
-      gsl_matrix_set(J, 2*i+1, 4, -2*D*w0/z + (D*wa-C*wb)/z/z * 4*wa*w0 - F);
-      gsl_matrix_set(J, 2*i+1, 5, +C*wi/z   + (D*wa-C*wb)/z/z * 2*wb*wi);
+      gsl_matrix_set(J, 2*i+1, 0, 0);   // -dY/dA
+      gsl_matrix_set(J, 2*i+1, 1, -1);  // -dY/dB
+      if (d->coord) {
+        gsl_matrix_set(J, 2*i+1, 2, +wb/z);  // -dY/dC
+        gsl_matrix_set(J, 2*i+1, 3, -wa/z); // -dY/dD
+        gsl_matrix_set(J, 2*i+1, 4, -2*D*w0/z + (D*wa-C*wb)/z/z * 4*wa*w0 - F); // -dY/d(f0)
+        gsl_matrix_set(J, 2*i+1, 5, +C*wi/z   + (D*wa-C*wb)/z/z * 2*wb*wi);     // -dY/d(df)
+      }
+      else {
+        gsl_matrix_set(J, 2*i+1, 2, -wi*wa/z); // -dY/dC
+        gsl_matrix_set(J, 2*i+1, 3, -wi*wb/z); // -dY/dD
+        gsl_matrix_set(J, 2*i+1, 4, wi*(-2*C*w0/z + (C*wa+D*wb)/z/z * 4*wa*w0) - F); // -dY/d(f0)
+        gsl_matrix_set(J, 2*i+1, 5, wi*(-D*wi/z   + (C*wa+D*wb)/z/z * 2*wb*wi));     // -dY/d(df)
+      }
       if (x->size >= 8) {
-        gsl_matrix_set(J, 2*i+1, 6, 0);
-        gsl_matrix_set(J, 2*i+1, 7, w0-wi);
+        gsl_matrix_set(J, 2*i+1, 6, 0);     // dY/dE
+        gsl_matrix_set(J, 2*i+1, 7, w0-wi); // dY/dF
       }
   }
 
@@ -261,7 +277,7 @@ solve_system(gsl_vector *x, gsl_vector *xe, gsl_multifit_nlinear_fdf *fdf,
 void
 fit_res_init (const size_t n, const size_t p,
          double * freq, double * real, double * imag,
-         double pars[MAXPARS]) {
+         double pars[MAXPARS], bool coord) {
 
 
   // A,B - in the middle between first and last point:
@@ -302,8 +318,14 @@ fit_res_init (const size_t n, const size_t p,
   // fill parameters (always set 8 parameters)
   pars[0] = A;
   pars[1] = B;
-  pars[2] = C;
-  pars[3] = D;
+  if (coord) {
+    pars[2] = C;
+    pars[3] = D;
+  }
+  else {
+    pars[2] = D/w0;
+    pars[3] = -C/w0;
+  }
   pars[4] = w0;
   pars[5] = dw;
   pars[6] = E;
@@ -315,7 +337,8 @@ fit_res_init (const size_t n, const size_t p,
 double
 fit_res (const size_t n, const size_t p,
          double * freq, double * real, double * imag,
-         double pars[MAXPARS], double pars_e[MAXPARS]) {
+         double pars[MAXPARS], double pars_e[MAXPARS],
+         bool coord) {
 
   gsl_vector *f = gsl_vector_alloc(2*n);
   gsl_vector *x  = gsl_vector_alloc(p);
@@ -326,6 +349,7 @@ fit_res (const size_t n, const size_t p,
   size_t i;
   struct data fit_data;
 
+  fit_data.coord = coord;
   fit_data.n = n;
   fit_data.w = freq;
   fit_data.x = real;
