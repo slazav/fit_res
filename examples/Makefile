@@ -29,7 +29,9 @@ w2ta_1.dat:
 
 #### fit_res parameters
 PARS=
-mcta_1.plot: PARS=--pars 6 --overload 0
+mcta_1.plot: PARS=--pars 6 --overload 0 --coord 0
+mcta_2.plot: PARS=--pars 6 --overload 0 --coord 0
+mcta_3.plot: PARS=--pars 6 --overload 0
 
-%.plot: %.dat make_plot
+%.plot: %.dat make_plot Makefile
 	./make_plot $< $@ $(PARS)

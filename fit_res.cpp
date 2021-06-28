@@ -116,12 +116,24 @@ main (int argc, char *argv[]) {
      freq.data(), real.data(), imag.data(),
      pars.data(), coord);
 
+
+  // shift/scale data
+  double x0 = pars[0];
+  double y0 = pars[1];
+  double s = std::max(pars[2], pars[3]);
+  for (size_t i=0; i<freq.size(); i++){
+    real[i] = (real[i]-x0)/s;
+    imag[i] = (imag[i]-y0)/s;
+  }
+
+
   // fit
   double func_e = 0;
   if (do_fit) {
     func_e = fit_res(freq.size(), p,
        freq.data(), real.data(), imag.data(),
        pars.data(), pars_e.data(), coord);
+
 
     // overload detection (remove largest values and compare result)
     if (overload_detection) {
@@ -144,6 +156,24 @@ main (int argc, char *argv[]) {
         }
       }
     }
+  }
+
+  // shift/scale back
+  func_e *= s;
+  pars[0] = (pars[0]*s)+x0;
+  pars[1] = (pars[1]*s)+y0;
+  pars[2] = pars[2]*s;
+  pars[3] = pars[3]*s;
+
+  pars_e[0] = pars_e[0]*s;
+  pars_e[1] = pars_e[1]*s;
+  pars_e[2] = pars_e[2]*s;
+  pars_e[3] = pars_e[3]*s;
+  if (p>=8){
+    pars[6] = pars[6]*s;
+    pars[7] = pars[7]*s;
+    pars_e[6] = pars_e[6]*s;
+    pars_e[7] = pars_e[7]*s;
   }
 
   double t = (*time.begin() + *time.rbegin())/2;
