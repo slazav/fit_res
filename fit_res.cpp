@@ -135,7 +135,7 @@ main (int argc, char *argv[]) {
   fit_res_init(freq.size(), p,
      freq.data(), real.data(), imag.data(),
      pars.data(), coord);
-
+  pars[0]=pars[1]=1e-6; // avoid zero values in init.cond
 
   // fit
   double func_e = 0;
