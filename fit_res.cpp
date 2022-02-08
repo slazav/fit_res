@@ -121,7 +121,6 @@ main (int argc, char *argv[]) {
      freq.data(), real.data(), imag.data(),
      pars.data(), coord);
 
-
   // shift/scale data
   double x0 = pars[0];
   double y0 = pars[1];
@@ -130,6 +129,11 @@ main (int argc, char *argv[]) {
     real[i] = (real[i]-x0)/s;
     imag[i] = (imag[i]-y0)/s;
   }
+
+  // initial guess:
+  fit_res_init(freq.size(), p,
+     freq.data(), real.data(), imag.data(),
+     pars.data(), coord);
 
 
   // fit
