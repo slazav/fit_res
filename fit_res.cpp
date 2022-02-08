@@ -45,6 +45,7 @@ print_help() {
   " --coord (1|0)      -- do coordinate or speed fitting, default 1\n"
   " --pars (6|8)       -- number of parameters, default 8\n"
   " --show_zeros (1|0) -- write trailing zeros for unused parameters, default 0\n"
+  " --fmt_out (1|0)    -- write <name>=<value> lines instead of table, default 0\n"
   ;
 }
 
@@ -57,6 +58,7 @@ main (int argc, char *argv[]) {
   bool coord  = true;
   size_t p = 8;
   bool show_zeros = false;
+  bool fmt_out = 0;
 
 
   // parse command-line options
@@ -78,6 +80,9 @@ main (int argc, char *argv[]) {
     else
     if (strcasecmp(argv[i], "--show_zeros") == 0)
       show_zeros = atoi(argv[i+1]);
+    else
+    if (strcasecmp(argv[i], "--fmt_out") == 0)
+      fmt_out = atoi(argv[i+1]);
     else {
       print_help(); return 1;
     }
@@ -178,17 +183,38 @@ main (int argc, char *argv[]) {
 
   double t = (*time.begin() + *time.rbegin())/2;
 
-  std::cout << std::setprecision(14)
-            << std::fixed << " " << t
-            << std::scientific
-            << " " << func_e;
-  for (size_t i = 0; i<p; i++) {
-    std::cout << " " << pars[i]
-              << " " << pars_e[i];
+  if (fmt_out==0) {
+    std::cout << std::setprecision(14)
+              << std::fixed << " " << t
+              << std::scientific
+              << " " << func_e;
+    for (size_t i = 0; i<p; i++) {
+      std::cout << " " << pars[i]
+                << " " << pars_e[i];
+    }
+    if (show_zeros) {
+      for (size_t i = p; i<MAXPARS; i++) std::cout << " 0 0";
+    }
   }
-  if (show_zeros) {
-    for (size_t i = p; i<MAXPARS; i++) std::cout << " 0 0";
+
+  if (fmt_out==1) {
+    std::cout << std::setprecision(14)
+              << std::fixed << "t0=" << t << "\n"
+              << std::scientific
+              << "err=" << func_e << "\n";
+
+    std::cout << "A="  << pars[0] << "\nA_err=" << pars_e[0] << "\n";
+    std::cout << "B="  << pars[1] << "\nB_err=" << pars_e[1] << "\n";
+    std::cout << "C="  << pars[2] << "\nC_err=" << pars_e[2] << "\n";
+    std::cout << "D="  << pars[3] << "\nC_err=" << pars_e[3] << "\n";
+    std::cout << "f0=" << pars[4] << "\nf0_err=" << pars_e[4] << "\n";
+    std::cout << "df=" << pars[5] << "\ndf_err=" << pars_e[5] << "\n";
+    if (p>=8){
+      std::cout << "E="  << pars[6] << "\nE_err=" << pars_e[6] << "\n";
+      std::cout << "F="  << pars[7] << "\nF_err=" << pars_e[7] << "\n";
+    }
   }
+
 
   std::cout << "\n";
   return 0;
