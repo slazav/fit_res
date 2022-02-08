@@ -104,6 +104,7 @@ main (int argc, char *argv[]) {
     std::istringstream ss(l);
     double t,f,x,y;
     ss >> t >> f >> x >> y;
+    if (ss.fail()) continue;
     time.push_back(t);
     freq.push_back(f);
     real.push_back(x);
