@@ -125,7 +125,7 @@ main (int argc, char *argv[]) {
   // shift/scale data
   double x0 = pars[0];
   double y0 = pars[1];
-  double s = std::max(pars[2], pars[3]);
+  double s = std::max(pars[2], pars[3])/pars[4]/pars[5];
   for (size_t i=0; i<freq.size(); i++){
     real[i] = (real[i]-x0)/s;
     imag[i] = (imag[i]-y0)/s;
