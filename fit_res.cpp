@@ -150,7 +150,7 @@ main (int argc, char *argv[]) {
       std::vector<double> freq1, real1, imag1;
       std::vector<double> pars1(pars), pars_e1(MAXPARS);
       for (int i=0; i<freq.size(); i++){
-        if (fabs(real[i]) > maxx*0.95 || fabs(imag[i]) > maxy*0.95) continue;
+        if (fabs(real[i]*s+x0) > maxx*0.95 || fabs(imag[i]*s+y0) > maxy*0.95) continue;
         freq1.push_back(freq[i]);
         real1.push_back(real[i]);
         imag1.push_back(imag[i]);
