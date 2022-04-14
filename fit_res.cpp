@@ -100,7 +100,8 @@ main (int argc, char *argv[]) {
   std::vector<double> freq, real, imag, time;
   std::vector<double> pars(MAXPARS), pars_e(MAXPARS);
 
-  double maxx=0, maxy=0;
+  // Read data (t,f,x,y), find max/min values
+  double maxx=-INFINITY, maxy=-INFINITY, minx=INFINITY, miny=INFINITY;
   while (!std::cin.eof()){
     std::string l;
     getline(std::cin, l);
@@ -114,22 +115,23 @@ main (int argc, char *argv[]) {
     real.push_back(x);
     imag.push_back(y);
 
-    // find maximum - for overload detection
-    if (fabs(x)>maxx) maxx=fabs(x);
-    if (fabs(y)>maxy) maxy=fabs(y);
+    // find max/min values
+    if (x>maxx) maxx=x;
+    if (y>maxy) maxy=y;
+    if (x<minx) minx=x;
+    if (y<miny) miny=y;
   }
+  // for overload detection
+  double maxax=std::max(fabs(maxx),fabs(minx));
+  double maxay=std::max(fabs(maxx),fabs(miny));
 
+  // too few data points
   if (freq.size()<p) return 0;
 
-  // initial guess:
-  fit_res_init(freq.size(), p,
-     freq.data(), real.data(), imag.data(),
-     pars.data(), fit_func);
-
   // shift/scale data
-  double x0 = pars[0];
-  double y0 = pars[1];
-  double s = std::max(pars[2], pars[3])/pars[4]/pars[5];
+  double x0 = (maxx+minx)/2;
+  double y0 = (maxy+miny)/2;
+  double s = std::min(maxx-minx, maxy-miny);
   for (size_t i=0; i<freq.size(); i++){
     real[i] = (real[i]-x0)/s;
     imag[i] = (imag[i]-y0)/s;
@@ -154,7 +156,7 @@ main (int argc, char *argv[]) {
       std::vector<double> freq1, real1, imag1;
       std::vector<double> pars1(pars), pars_e1(MAXPARS);
       for (int i=0; i<freq.size(); i++){
-        if (fabs(real[i]*s+x0) > maxx*0.95 || fabs(imag[i]*s+y0) > maxy*0.95) continue;
+        if (fabs(real[i]*s+x0) > maxax*0.95 || fabs(imag[i]*s+y0) > maxay*0.95) continue;
         freq1.push_back(freq[i]);
         real1.push_back(real[i]);
         imag1.push_back(imag[i]);
