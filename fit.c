@@ -18,7 +18,7 @@ struct data {
   double *x;
   double *y;
   size_t n;
-  bool coord;
+  fit_func_t fit_func;
 };
 
 int
@@ -44,7 +44,7 @@ func_f (const gsl_vector * x, void *params, gsl_vector * f) {
     double z = wa*wa + wb*wb;
 
     double X=0, Y=0;
-    if (d->coord) {
+    if (d->fit_func == OSCX_COFFS || d->fit_func == OSCX_LOFFS) {
       X = A + (C*wa + D*wb)/z + E*(wi-w0);
       Y = B + (D*wa - C*wb)/z + F*(wi-w0);
     }
@@ -86,7 +86,7 @@ func_df (const gsl_vector * x, void *params, gsl_matrix * J) {
 
       gsl_matrix_set(J, 2*i, 0, -1);  // -dX/dA
       gsl_matrix_set(J, 2*i, 1, 0);   // -dX/dB
-      if (d->coord) {
+      if (d->fit_func == OSCX_COFFS || d->fit_func == OSCX_LOFFS) {
         gsl_matrix_set(J, 2*i, 2, -wa/z); // -dX/dC
         gsl_matrix_set(J, 2*i, 3, -wb/z); // -dX/dD
         gsl_matrix_set(J, 2*i, 4, -2*C*w0/z + (C*wa+D*wb)/z/z * 4*wa*w0 - E); // -dX/d(f0)
@@ -105,7 +105,7 @@ func_df (const gsl_vector * x, void *params, gsl_matrix * J) {
 
       gsl_matrix_set(J, 2*i+1, 0, 0);   // -dY/dA
       gsl_matrix_set(J, 2*i+1, 1, -1);  // -dY/dB
-      if (d->coord) {
+      if (d->fit_func == OSCX_COFFS || d->fit_func == OSCX_LOFFS) {
         gsl_matrix_set(J, 2*i+1, 2, +wb/z);  // -dY/dC
         gsl_matrix_set(J, 2*i+1, 3, -wa/z); // -dY/dD
         gsl_matrix_set(J, 2*i+1, 4, -2*D*w0/z + (D*wa-C*wb)/z/z * 4*wa*w0 - F); // -dY/d(f0)
@@ -277,7 +277,7 @@ solve_system(gsl_vector *x, gsl_vector *xe, gsl_multifit_nlinear_fdf *fdf,
 void
 fit_res_init (const size_t n, const size_t p,
          double * freq, double * real, double * imag,
-         double pars[MAXPARS], bool coord) {
+         double pars[MAXPARS], fit_func_t fit_func) {
 
 
   // A,B - in the middle between first and last point:
@@ -318,7 +318,7 @@ fit_res_init (const size_t n, const size_t p,
   // fill parameters (always set 8 parameters)
   pars[0] = A;
   pars[1] = B;
-  if (coord) {
+  if (fit_func == OSCX_COFFS || fit_func == OSCX_LOFFS) {
     pars[2] = C;
     pars[3] = D;
   }
@@ -338,7 +338,7 @@ double
 fit_res (const size_t n, const size_t p,
          double * freq, double * real, double * imag,
          double pars[MAXPARS], double pars_e[MAXPARS],
-         bool coord) {
+         fit_func_t fit_func) {
 
   gsl_vector *f = gsl_vector_alloc(2*n);
   gsl_vector *x  = gsl_vector_alloc(p);
@@ -349,7 +349,7 @@ fit_res (const size_t n, const size_t p,
   size_t i;
   struct data fit_data;
 
-  fit_data.coord = coord;
+  fit_data.fit_func = fit_func;
   fit_data.n = n;
   fit_data.w = freq;
   fit_data.x = real;

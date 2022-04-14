@@ -88,10 +88,14 @@ main (int argc, char *argv[]) {
     }
   }
 
-  if (p != 6 && p != 8) {
+  fit_func_t fit_func;
+  if      (p==6 && coord==1) fit_func = OSCX_COFFS;
+  else if (p==8 && coord==1) fit_func = OSCX_LOFFS;
+  else if (p==6 && coord==0) fit_func = OSCV_COFFS;
+  else if (p==8 && coord==0) fit_func = OSCV_LOFFS;
+  else {
     print_help(); return 1;
   }
-
 
   std::vector<double> freq, real, imag, time;
   std::vector<double> pars(MAXPARS), pars_e(MAXPARS);
@@ -120,7 +124,7 @@ main (int argc, char *argv[]) {
   // initial guess:
   fit_res_init(freq.size(), p,
      freq.data(), real.data(), imag.data(),
-     pars.data(), coord);
+     pars.data(), fit_func);
 
   // shift/scale data
   double x0 = pars[0];
@@ -134,7 +138,7 @@ main (int argc, char *argv[]) {
   // initial guess:
   fit_res_init(freq.size(), p,
      freq.data(), real.data(), imag.data(),
-     pars.data(), coord);
+     pars.data(), fit_func);
   pars[0]=pars[1]=1e-6; // avoid zero values in init.cond
 
   // fit
@@ -142,7 +146,7 @@ main (int argc, char *argv[]) {
   if (do_fit) {
     func_e = fit_res(freq.size(), p,
        freq.data(), real.data(), imag.data(),
-       pars.data(), pars_e.data(), coord);
+       pars.data(), pars_e.data(), fit_func);
 
 
     // overload detection (remove largest values and compare result)
@@ -158,7 +162,7 @@ main (int argc, char *argv[]) {
       if (freq1.size() >= p) {
         double func_e1 = fit_res(freq1.size(), p,
            freq1.data(), real1.data(), imag1.data(),
-           pars1.data(), pars_e1.data(), coord);
+           pars1.data(), pars_e1.data(), fit_func);
         if (func_e1 < func_e) {
           pars.swap(pars1);
           pars_e.swap(pars_e1);
