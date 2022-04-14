@@ -7,6 +7,8 @@ shift
 ofile=$1
 shift
 
+echo "$@" | grep -q -- '--coord 0' && coord=0 || coord=1
+
 ## fit and make gnuplot script
 cat $ifile | ../fit_res "$@" | {
  read t0 e A Ae B Be C Ce D De f0 f0e df dfe E Ee F Fe
@@ -26,8 +28,16 @@ t0=$t0
 E=${E:-0}
 F=${F:-0}
 
-X(f) = A + (C*(f0**2-f**2) + D*f*df) / ((f0**2-f**2)**2 + (f*df)**2) + E*(f-f0)
-Y(f) = B + (D*(f0**2-f**2) - C*f*df) / ((f0**2-f**2)**2 + (f*df)**2) + F*(f-f0)
+coord=$coord
+
+CX(f) = A + (C*(f0**2-f**2) + D*f*df) / ((f0**2-f**2)**2 + (f*df)**2) + E*(f-f0)
+CY(f) = B + (D*(f0**2-f**2) - C*f*df) / ((f0**2-f**2)**2 + (f*df)**2) + F*(f-f0)
+
+VX(f) = A - f*(D*(f0**2-f**2) - C*f*df) / ((f0**2-f**2)**2 + (f*df)**2) + E*(f-f0)
+VY(f) = B + f*(C*(f0**2-f**2) + D*f*df) / ((f0**2-f**2)**2 + (f*df)**2) + F*(f-f0)
+
+X(f) = coord? CX(f): VX(f)
+Y(f) = coord? CY(f): VY(f)
 
 set nokey
 set samples 1000
