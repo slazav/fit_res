@@ -1,10 +1,12 @@
 mcta_1  -- Tantalum vibrating wire in the mixing chamber of Fridge4 (2019). df = 1.53 Hz
-mcta_2  -- Tantalum vibrating wire in the mixing chamber of Fridge4 (2019). df = 6.06 Hz
-mcta_2  -- Tantalum vibrating wire in the mixing chamber of Fridge4 (2021). df = 12.1 Hz
+mcta_2  -- same, 2019, df = 6.06 Hz
+mcta_3  -- same, 2021, df = 12.1 Hz
+mcta_d1, mcta_d2 -- same, 2022, two resonances at high magnetic field
 
 mcta_ov -- Tantalum vibrating wire in the mixing chamber of Fridge4. Overloaded.
 
 mctf    -- Quartz tunning fork in in the mixing chamber of Fridge4. Large, non-constant offset.
+
 
 
 wire1.dat, wire2.dat -- MCTi wire signals from Lancaster Fridge4
