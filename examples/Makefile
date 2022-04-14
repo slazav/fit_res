@@ -1,4 +1,4 @@
-all: mcta_1.plot mcta_2.plot mcta_3.plot mcta_ov.plot mctf_1.plot w2ta_1.plot
+all: mcta_1.plot mcta_2.plot mcta_3.plot mcta_ov.plot mctf_1.plot w2ta_1.plot mcta_d1.plot
 
 clean:
 	rm -f *.plot
@@ -18,6 +18,9 @@ mcta_2.dat:
 mcta_3.dat:
 	wget "http://slazav.xyz:8095/get_range?name=mcta_sweeps&t1=1620034365&t2=1620034479" -O $@
 
+mcta_d1.dat:
+	wget "http://slazav.xyz:8095/get_range?name=mcta_sweeps&t1=1649929050&t2=1649929275" -O $@
+
 mcta_ov.dat:
 	wget "http://slazav.xyz:8084/get_range?name=wire_mc_cont&t1=1577309281&t2=1577309575" -O $@
 
@@ -32,6 +35,7 @@ PARS=
 mcta_1.plot: PARS=--pars 6 --overload 0 --coord 0
 mcta_2.plot: PARS=--pars 6 --overload 0 --coord 0
 mcta_3.plot: PARS=--pars 6 --overload 0
+mcta_d1.plot: PARS=--pars 10
 
 %.plot: %.dat make_plot Makefile
 	./make_plot $< $@ $(PARS)

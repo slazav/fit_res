@@ -30,10 +30,13 @@ func_f (const gsl_vector * x, void *params, gsl_vector * f) {
   double D = gsl_vector_get(x, 3);
   double w0 = gsl_vector_get(x, 4);
   double dw = gsl_vector_get(x, 5);
-  double E = (x->size >= 8) ? gsl_vector_get(x, 6) : 0.0;
-  double F = (x->size >= 8) ? gsl_vector_get(x, 7) : 0.0;
+  double E = (x->size == 8) ? gsl_vector_get(x, 6) : 0.0;
+  double F = (x->size == 8) ? gsl_vector_get(x, 7) : 0.0;
+  double C2 = (x->size == 10) ? gsl_vector_get(x, 6) : 0.0;
+  double D2 = (x->size == 10) ? gsl_vector_get(x, 7) : 0.0;
+  double w02 = (x->size == 10) ? gsl_vector_get(x, 8) : 0.0;
+  double dw2 = (x->size == 10) ? gsl_vector_get(x, 9) : 0.0;
   size_t i;
-
   for (i = 0; i < d->n; ++i) {
     double wi = d->w[i];
     double Xi = d->x[i];
@@ -43,16 +46,37 @@ func_f (const gsl_vector * x, void *params, gsl_vector * f) {
     double wb = wi*dw;
     double z = wa*wa + wb*wb;
 
-    double X=0, Y=0;
-    if (d->fit_func == OSCX_COFFS || d->fit_func == OSCX_LOFFS) {
-      X = A + (C*wa + D*wb)/z + E*(wi-w0);
-      Y = B + (D*wa - C*wb)/z + F*(wi-w0);
-    }
-    else {
-      X = A - wi*(D*wa - C*wb)/z + E*(wi-w0);
-      Y = B + wi*(C*wa + D*wb)/z + F*(wi-w0);
-    }
+    double wa2 = w02*w02 - wi*wi;
+    double wb2 = wi*dw2;
+    double z2 = wa2*wa2 + wb2*wb2;
 
+    double X=0, Y=0;
+    switch (d->fit_func) {
+     case OSCX_COFFS:
+        X = A + (C*wa + D*wb)/z;
+        Y = B + (D*wa - C*wb)/z;
+        break;
+     case OSCX_LOFFS:
+        X = A + (C*wa + D*wb)/z + E*(wi-w0);
+        Y = B + (D*wa - C*wb)/z + F*(wi-w0);
+        break;
+     case OSCV_COFFS:
+        X = A - wi*(D*wa - C*wb)/z;
+        Y = B + wi*(C*wa + D*wb)/z;
+        break;
+     case OSCV_LOFFS:
+        X = A - wi*(D*wa - C*wb)/z + E*(wi-w0);
+        Y = B + wi*(C*wa + D*wb)/z + F*(wi-w0);
+        break;
+     case DOSCX_COFFS:
+        X = A + (C*wa + D*wb)/z + (C2*wa2 + D2*wb2)/z2;
+        Y = B + (D*wa - C*wb)/z + (D2*wa2 - C2*wb2)/z2;
+        break;
+     case DOSCV_COFFS:
+        X = A - wi*(D*wa - C*wb)/z - wi*(D2*wa2 - C2*wb2)/z2;
+        Y = B + wi*(C*wa + D*wb)/z + wi*(C2*wa2 + D2*wb2)/z2;
+        break;
+    }
     gsl_vector_set(f, 2*i,   Xi - X);
     gsl_vector_set(f, 2*i+1, Yi - Y);
   }
@@ -73,54 +97,123 @@ func_df (const gsl_vector * x, void *params, gsl_matrix * J) {
   double dw = gsl_vector_get(x, 5);
   double E = (x->size >= 8) ? gsl_vector_get(x, 6) : 0.0;
   double F = (x->size >= 8) ? gsl_vector_get(x, 7) : 0.0;
+  double C2 = (x->size == 10) ? gsl_vector_get(x, 6) : 0.0;
+  double D2 = (x->size == 10) ? gsl_vector_get(x, 7) : 0.0;
+  double w02 = (x->size == 10) ? gsl_vector_get(x, 8) : 0.0;
+  double dw2 = (x->size == 10) ? gsl_vector_get(x, 9) : 0.0;
   size_t i;
 
   for (i = 0; i < d->n; ++i) {
-      double wi = d->w[i];
-      double Xi = d->x[i];
-      double Yi = d->y[i];
+    double wi = d->w[i];
+    double Xi = d->x[i];
+    double Yi = d->y[i];
 
-      double wa = w0*w0 - wi*wi;
-      double wb = wi*dw;
-      double z = wa*wa + wb*wb;
+    double wa = w0*w0 - wi*wi;
+    double wb = wi*dw;
+    double z = wa*wa + wb*wb;
 
-      gsl_matrix_set(J, 2*i, 0, -1);  // -dX/dA
-      gsl_matrix_set(J, 2*i, 1, 0);   // -dX/dB
-      if (d->fit_func == OSCX_COFFS || d->fit_func == OSCX_LOFFS) {
+    double wa2 = w02*w02 - wi*wi;
+    double wb2 = wi*dw2;
+    double z2 = wa2*wa2 + wb2*wb2;
+
+    gsl_matrix_set(J, 2*i, 0, -1);  // -dX/dA
+    gsl_matrix_set(J, 2*i, 1, 0);   // -dX/dB
+    gsl_matrix_set(J, 2*i+1, 0, 0);   // -dY/dA
+    gsl_matrix_set(J, 2*i+1, 1, -1);  // -dY/dB
+
+    switch (d->fit_func) {
+     case OSCX_COFFS:
+        gsl_matrix_set(J, 2*i, 2, -wa/z); // -dX/dC
+        gsl_matrix_set(J, 2*i, 3, -wb/z); // -dX/dD
+        gsl_matrix_set(J, 2*i, 4, -2*C*w0/z + (C*wa+D*wb)/z/z * 4*wa*w0); // -dX/d(f0)
+        gsl_matrix_set(J, 2*i, 5, -D*wi/z   + (C*wa+D*wb)/z/z * 2*wb*wi); // -dX/d(df)
+
+        gsl_matrix_set(J, 2*i+1, 2, +wb/z);  // -dY/dC
+        gsl_matrix_set(J, 2*i+1, 3, -wa/z); // -dY/dD
+        gsl_matrix_set(J, 2*i+1, 4, -2*D*w0/z + (D*wa-C*wb)/z/z * 4*wa*w0); // -dY/d(f0)
+        gsl_matrix_set(J, 2*i+1, 5, +C*wi/z   + (D*wa-C*wb)/z/z * 2*wb*wi); // -dY/d(df)
+        break;
+     case OSCX_LOFFS:
         gsl_matrix_set(J, 2*i, 2, -wa/z); // -dX/dC
         gsl_matrix_set(J, 2*i, 3, -wb/z); // -dX/dD
         gsl_matrix_set(J, 2*i, 4, -2*C*w0/z + (C*wa+D*wb)/z/z * 4*wa*w0 - E); // -dX/d(f0)
         gsl_matrix_set(J, 2*i, 5, -D*wi/z   + (C*wa+D*wb)/z/z * 2*wb*wi);     // -dX/d(df)
-      }
-      else {
-        gsl_matrix_set(J, 2*i, 2, -wi*wb/z); // -dX/dC
-        gsl_matrix_set(J, 2*i, 3, +wi*wa/z); // -dX/dD
-        gsl_matrix_set(J, 2*i, 4, -wi*(-2*D*w0/z + (D*wa-C*wb)/z/z * 4*wa*w0) - E); // -dX/d(f0)
-        gsl_matrix_set(J, 2*i, 5, -wi*(+C*wi/z   + (D*wa-C*wb)/z/z * 2*wb*wi));     // -dX/d(df)
-      }
-      if (x->size >= 8) {
         gsl_matrix_set(J, 2*i, 6, w0-wi); // -dX/dE
         gsl_matrix_set(J, 2*i, 7, 0);     // -dX/dF
-      }
 
-      gsl_matrix_set(J, 2*i+1, 0, 0);   // -dY/dA
-      gsl_matrix_set(J, 2*i+1, 1, -1);  // -dY/dB
-      if (d->fit_func == OSCX_COFFS || d->fit_func == OSCX_LOFFS) {
         gsl_matrix_set(J, 2*i+1, 2, +wb/z);  // -dY/dC
         gsl_matrix_set(J, 2*i+1, 3, -wa/z); // -dY/dD
         gsl_matrix_set(J, 2*i+1, 4, -2*D*w0/z + (D*wa-C*wb)/z/z * 4*wa*w0 - F); // -dY/d(f0)
         gsl_matrix_set(J, 2*i+1, 5, +C*wi/z   + (D*wa-C*wb)/z/z * 2*wb*wi);     // -dY/d(df)
-      }
-      else {
+        gsl_matrix_set(J, 2*i+1, 6, 0);     // dY/dE
+        gsl_matrix_set(J, 2*i+1, 7, w0-wi); // dY/dF
+        break;
+     case OSCV_COFFS:
+        gsl_matrix_set(J, 2*i, 2, -wi*wb/z); // -dX/dC
+        gsl_matrix_set(J, 2*i, 3, +wi*wa/z); // -dX/dD
+        gsl_matrix_set(J, 2*i, 4, -wi*(-2*D*w0/z + (D*wa-C*wb)/z/z * 4*wa*w0)); // -dX/d(f0)
+        gsl_matrix_set(J, 2*i, 5, -wi*(+C*wi/z   + (D*wa-C*wb)/z/z * 2*wb*wi));     // -dX/d(df)
+
+        gsl_matrix_set(J, 2*i+1, 2, -wi*wa/z); // -dY/dC
+        gsl_matrix_set(J, 2*i+1, 3, -wi*wb/z); // -dY/dD
+        gsl_matrix_set(J, 2*i+1, 4, wi*(-2*C*w0/z + (C*wa+D*wb)/z/z * 4*wa*w0)); // -dY/d(f0)
+        gsl_matrix_set(J, 2*i+1, 5, wi*(-D*wi/z   + (C*wa+D*wb)/z/z * 2*wb*wi));     // -dY/d(df)
+        break;
+     case OSCV_LOFFS:
+        gsl_matrix_set(J, 2*i, 2, -wi*wb/z); // -dX/dC
+        gsl_matrix_set(J, 2*i, 3, +wi*wa/z); // -dX/dD
+        gsl_matrix_set(J, 2*i, 4, -wi*(-2*D*w0/z + (D*wa-C*wb)/z/z * 4*wa*w0) - E); // -dX/d(f0)
+        gsl_matrix_set(J, 2*i, 5, -wi*(+C*wi/z   + (D*wa-C*wb)/z/z * 2*wb*wi));     // -dX/d(df)
+        gsl_matrix_set(J, 2*i, 6, w0-wi); // -dX/dE
+        gsl_matrix_set(J, 2*i, 7, 0);     // -dX/dF
+
         gsl_matrix_set(J, 2*i+1, 2, -wi*wa/z); // -dY/dC
         gsl_matrix_set(J, 2*i+1, 3, -wi*wb/z); // -dY/dD
         gsl_matrix_set(J, 2*i+1, 4, wi*(-2*C*w0/z + (C*wa+D*wb)/z/z * 4*wa*w0) - F); // -dY/d(f0)
         gsl_matrix_set(J, 2*i+1, 5, wi*(-D*wi/z   + (C*wa+D*wb)/z/z * 2*wb*wi));     // -dY/d(df)
-      }
-      if (x->size >= 8) {
         gsl_matrix_set(J, 2*i+1, 6, 0);     // dY/dE
         gsl_matrix_set(J, 2*i+1, 7, w0-wi); // dY/dF
-      }
+        break;
+     case DOSCX_COFFS:
+        gsl_matrix_set(J, 2*i, 2, -wa/z); // -dX/dC
+        gsl_matrix_set(J, 2*i, 3, -wb/z); // -dX/dD
+        gsl_matrix_set(J, 2*i, 4, -2*C*w0/z + (C*wa+D*wb)/z/z * 4*wa*w0); // -dX/d(f0)
+        gsl_matrix_set(J, 2*i, 5, -D*wi/z   + (C*wa+D*wb)/z/z * 2*wb*wi);     // -dX/d(df)
+        gsl_matrix_set(J, 2*i, 6, -wa2/z2); // -dX/dC2
+        gsl_matrix_set(J, 2*i, 7, -wb2/z2); // -dX/dD2
+        gsl_matrix_set(J, 2*i, 8, -2*C2*w02/z2 + (C2*wa2+D2*wb2)/z2/z2 * 4*wa2*w02); // -dX/d(f02)
+        gsl_matrix_set(J, 2*i, 9, -D2*wi/z2   + (C2*wa2+D2*wb2)/z2/z2 * 2*wb2*wi);   // -dX/d(df2)
+
+        gsl_matrix_set(J, 2*i+1, 2, +wb/z); // -dY/dC
+        gsl_matrix_set(J, 2*i+1, 3, -wa/z); // -dY/dD
+        gsl_matrix_set(J, 2*i+1, 4, -2*D*w0/z + (D*wa-C*wb)/z/z * 4*wa*w0); // -dY/d(f0)
+        gsl_matrix_set(J, 2*i+1, 5, +C*wi/z   + (D*wa-C*wb)/z/z * 2*wb*wi); // -dY/d(df)
+        gsl_matrix_set(J, 2*i+1, 6, +wb2/z2); // -dY/dC2
+        gsl_matrix_set(J, 2*i+1, 7, -wa2/z2); // -dY/dD2
+        gsl_matrix_set(J, 2*i+1, 8, -2*D2*w02/z2 + (D2*wa2-C2*wb2)/z2/z2 * 4*wa2*w02); // -dY/d(f02)
+        gsl_matrix_set(J, 2*i+1, 9, +C2*wi/z2   + (D2*wa2-C2*wb2)/z2/z2 * 2*wb2*wi);   // -dY/d(df2)
+        break;
+     case DOSCV_COFFS:
+        gsl_matrix_set(J, 2*i, 2, -wi*wb/z); // -dX/dC
+        gsl_matrix_set(J, 2*i, 3, +wi*wa/z); // -dX/dD
+        gsl_matrix_set(J, 2*i, 4, -wi*(-2*D*w0/z + (D*wa-C*wb)/z/z * 4*wa*w0)); // -dX/d(f0)
+        gsl_matrix_set(J, 2*i, 5, -wi*(+C*wi/z   + (D*wa-C*wb)/z/z * 2*wb*wi));     // -dX/d(df)
+
+        gsl_matrix_set(J, 2*i, 6, -wi*wb2/z2); // -dX/dC2
+        gsl_matrix_set(J, 2*i, 7, +wi*wa2/z2); // -dX/dD2
+        gsl_matrix_set(J, 2*i, 8, -wi*(-2*D2*w02/z2 + (D2*wa2-C2*wb2)/z2/z2 * 4*wa2*w02)); // -dX/d(f02)
+        gsl_matrix_set(J, 2*i, 9, -wi*(+C2*wi/z2   + (D2*wa2-C2*wb2)/z2/z2 * 2*wb2*wi));   // -dX/d(df2)
+
+        gsl_matrix_set(J, 2*i+1, 2, -wi*wa/z); // -dY/dC
+        gsl_matrix_set(J, 2*i+1, 3, -wi*wb/z); // -dY/dD
+        gsl_matrix_set(J, 2*i+1, 4, wi*(-2*C*w0/z + (C*wa+D*wb)/z/z * 4*wa*w0)); // -dY/d(f0)
+        gsl_matrix_set(J, 2*i+1, 5, wi*(-D*wi/z   + (C*wa+D*wb)/z/z * 2*wb*wi));     // -dY/d(df)
+        gsl_matrix_set(J, 2*i+1, 6, -wi*wa2/z2); // -dY/dC2
+        gsl_matrix_set(J, 2*i+1, 7, -wi*wb2/z2); // -dY/dD2
+        gsl_matrix_set(J, 2*i+1, 8, wi*(-2*C2*w02/z2 + (C2*wa2+D2*wb2)/z2/z2 * 4*wa2*w02)); // -dY/d(f02)
+        gsl_matrix_set(J, 2*i+1, 9, wi*(-D2*wi/z2   + (C2*wa2+D2*wb2)/z2/z2 * 2*wb2*wi));     // -dY/d(df2)
+        break;
+    }
   }
 
   return GSL_SUCCESS;
@@ -315,21 +408,42 @@ fit_res_init (const size_t n, const size_t p,
   double E = (real[n-1] - real[0])/(freq[n-1] - freq[0]);
   double F = (imag[n-1] - imag[0])/(freq[n-1] - freq[0]);
 
-  // fill parameters (always set 8 parameters)
-  pars[0] = A;
-  pars[1] = B;
-  if (fit_func == OSCX_COFFS || fit_func == OSCX_LOFFS) {
-    pars[2] = C;
-    pars[3] = D;
+
+  // fill parameters
+  pars[0] = A; pars[1] = B;
+
+  switch (fit_func) {
+    case OSCX_COFFS:
+      pars[2] = C;  pars[3] = D;
+      pars[4] = w0; pars[5] = dw;
+      break;
+   case OSCX_LOFFS:
+      pars[2] = C;  pars[3] = D;
+      pars[4] = w0; pars[5] = dw;
+      pars[6] = E;  pars[7] = F;
+      break;
+   case OSCV_COFFS:
+      pars[2] = D/w0; pars[3] = -C/w0;
+      pars[4] = w0;   pars[5] = dw;
+      break;
+   case OSCV_LOFFS:
+      pars[2] = D/w0; pars[3] = -C/w0;
+      pars[4] = w0;   pars[5] = dw;
+      pars[6] = E;    pars[7] = F;
+      break;
+   case DOSCX_COFFS:
+      pars[2] = C;     pars[3] = D;
+      pars[4] = w0+dw; pars[5] = dw;
+      pars[6] = C;     pars[7] = D;
+      pars[8] = w0-dw; pars[9] = dw;
+      break;
+   case DOSCV_COFFS:
+      pars[2] = D/w0;  pars[3] = -C/w0;
+      pars[4] = w0+dw; pars[5] = dw;
+      pars[6] = D/w0;  pars[7] = -C/w0;
+      pars[8] = w0-dw; pars[9] = dw;
+      break;
   }
-  else {
-    pars[2] = D/w0;
-    pars[3] = -C/w0;
-  }
-  pars[4] = w0;
-  pars[5] = dw;
-  pars[6] = E;
-  pars[7] = F;
 }
 
 /********************************************************************/

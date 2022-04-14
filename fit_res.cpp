@@ -93,6 +93,8 @@ main (int argc, char *argv[]) {
   else if (p==8 && coord==1) fit_func = OSCX_LOFFS;
   else if (p==6 && coord==0) fit_func = OSCV_COFFS;
   else if (p==8 && coord==0) fit_func = OSCV_LOFFS;
+  else if (p==10 && coord==1) fit_func = DOSCX_COFFS;
+  else if (p==10 && coord==0) fit_func = DOSCV_COFFS;
   else {
     print_help(); return 1;
   }
@@ -185,7 +187,7 @@ main (int argc, char *argv[]) {
   pars_e[1] = pars_e[1]*s;
   pars_e[2] = pars_e[2]*s;
   pars_e[3] = pars_e[3]*s;
-  if (p>=8){
+  if (p==8 || p==10){
     pars[6] = pars[6]*s;
     pars[7] = pars[7]*s;
     pars_e[6] = pars_e[6]*s;
@@ -203,8 +205,8 @@ main (int argc, char *argv[]) {
       std::cout << " " << pars[i]
                 << " " << pars_e[i];
     }
-    if (show_zeros) {
-      for (size_t i = p; i<MAXPARS; i++) std::cout << " 0 0";
+    if (show_zeros && p==6) {
+      std::cout << " 0 0 0 0";
     }
   }
 
@@ -220,10 +222,17 @@ main (int argc, char *argv[]) {
     std::cout << "D="  << pars[3] << "\nC_err=" << pars_e[3] << "\n";
     std::cout << "f0=" << pars[4] << "\nf0_err=" << pars_e[4] << "\n";
     std::cout << "df=" << pars[5] << "\ndf_err=" << pars_e[5] << "\n";
-    if (p>=8){
+    if (p==8){
       std::cout << "E="  << pars[6] << "\nE_err=" << pars_e[6] << "\n";
       std::cout << "F="  << pars[7] << "\nF_err=" << pars_e[7] << "\n";
     }
+    if (p==10){
+      std::cout << "C2="  << pars[6] << "\nC2_err=" << pars_e[6] << "\n";
+      std::cout << "D2="  << pars[7] << "\nC2_err=" << pars_e[7] << "\n";
+      std::cout << "f02=" << pars[8] << "\nf02_err=" << pars_e[8] << "\n";
+      std::cout << "df2=" << pars[9] << "\ndf2_err=" << pars_e[9] << "\n";
+    }
+    std::cout << "fit_func=" << (int)fit_func << "\n";
   }
 
 

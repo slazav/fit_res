@@ -1,7 +1,7 @@
 #ifndef FIT_RES_H
 #define FIT_RES_H
 
-#define MAXPARS 8
+#define MAXPARS 10
 
 enum fit_func_t {
   // Coordinate response of lineal oscillator (Lorentzian function) with constant offset:
@@ -9,24 +9,32 @@ enum fit_func_t {
   // X(w) = A + (C*(w0^2-w^2) + D*w*dw) / ((w0^2-w^2)^2 + (w*dw)^2) [ + E*(w-w0) ]
   // Y(w) = B + (D*(w0^2-w^2) - C*w*dw) / ((w0^2-w^2)^2 + (w*dw)^2) [ + F*(w-w0) ]
   // 6 parameters
-  OSCX_COFFS,
+  OSCX_COFFS=0,
 
   // Same with linear offset, additional term
   // (X + iY) = ... + (E + iF)*(w-w0)
   // 8 parameters
-  OSCX_LOFFS,
+  OSCX_LOFFS=1,
 
   // Velocity response of lineal oscillator with constant offset:
   // (X + iY) = (A + iB) + i*w*(C + iD)/(w0^2 - w^2 - iw*dw) [ + (E + iF)*(w-w0) ]
   // X(w) = A - w*(D*(w0^2-w^2) - C*w*dw) / ((w0^2-w^2)^2 + (w*dw)^2) [ + E*(w-w0) ]
   // Y(w) = B + w*(C*(w0^2-w^2) + D*w*dw) / ((w0^2-w^2)^2 + (w*dw)^2) [ + F*(w-w0) ]
   // 6 parameters
-  OSCV_COFFS,
+  OSCV_COFFS=2,
 
   // Same with linear offset, additional term
   // (X + iY) = ... + (E + iF)*(w-w0)
   // 8 parameters
-  OSCV_LOFFS,
+  OSCV_LOFFS=3,
+
+  // Double resonance, coordinate response, constant offset
+  // X(w) = .. - w*(D2*(w02^2-w^2) - C2*w*dw2) / ((w02^2-w^2)^2 + (w*dw2)^2)
+  // Y(w) = .. + w*(C2*(w02^2-w^2) + D2*w*dw2) / ((w02^2-w^2)^2 + (w*dw2)^2)
+  DOSCX_COFFS=4,
+
+  // Double resonance, velocity response, constant offset
+  DOSCV_COFFS=5,
 };
 
 /*

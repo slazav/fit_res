@@ -7,37 +7,39 @@ shift
 ofile=$1
 shift
 
-echo "$@" | grep -q -- '--coord 0' && coord=0 || coord=1
-
 ## fit and make gnuplot script
-cat $ifile | ../fit_res "$@" | {
- read t0 e A Ae B Be C Ce D De f0 f0e df dfe E Ee F Fe
+res=$(cat $ifile | ../fit_res --fmt_out 1 "$@")
 
 cat > $ofile <<EOF
 #!/usr/bin/gnuplot
 
 file = "$ifile"
+$res
 
-A=$A
-B=$B
-C=$C
-D=$D
-f0=$f0
-df=$df
-t0=$t0
-E=${E:-0}
-F=${F:-0}
-
-coord=$coord
-
-CX(f) = A + (C*(f0**2-f**2) + D*f*df) / ((f0**2-f**2)**2 + (f*df)**2) + E*(f-f0)
-CY(f) = B + (D*(f0**2-f**2) - C*f*df) / ((f0**2-f**2)**2 + (f*df)**2) + F*(f-f0)
-
-VX(f) = A - f*(D*(f0**2-f**2) - C*f*df) / ((f0**2-f**2)**2 + (f*df)**2) + E*(f-f0)
-VY(f) = B + f*(C*(f0**2-f**2) + D*f*df) / ((f0**2-f**2)**2 + (f*df)**2) + F*(f-f0)
-
-X(f) = coord? CX(f): VX(f)
-Y(f) = coord? CY(f): VY(f)
+if (fit_func==0){
+  X(f) = A + (C*(f0**2-f**2) + D*f*df) / ((f0**2-f**2)**2 + (f*df)**2)
+  Y(f) = B + (D*(f0**2-f**2) - C*f*df) / ((f0**2-f**2)**2 + (f*df)**2)
+}
+if (fit_func==1){
+  X(f) = A + (C*(f0**2-f**2) + D*f*df) / ((f0**2-f**2)**2 + (f*df)**2) + E*(f-f0)
+  Y(f) = B + (D*(f0**2-f**2) - C*f*df) / ((f0**2-f**2)**2 + (f*df)**2) + F*(f-f0)
+}
+if (fit_func==2){
+  X(f) = A - f*(D*(f0**2-f**2) - C*f*df) / ((f0**2-f**2)**2 + (f*df)**2)
+  Y(f) = B + f*(C*(f0**2-f**2) + D*f*df) / ((f0**2-f**2)**2 + (f*df)**2)
+}
+if (fit_func==3){
+  X(f) = A - f*(D*(f0**2-f**2) - C*f*df) / ((f0**2-f**2)**2 + (f*df)**2) + E*(f-f0)
+  Y(f) = B + f*(C*(f0**2-f**2) + D*f*df) / ((f0**2-f**2)**2 + (f*df)**2) + F*(f-f0)
+}
+if (fit_func==4){
+  X(f) = A + (C*(f0**2-f**2) + D*f*df) / ((f0**2-f**2)**2 + (f*df)**2) + (C2*(f02**2-f**2) + D2*f*df2) / ((f02**2-f**2)**2 + (f*df2)**2)
+  Y(f) = B + (D*(f0**2-f**2) - C*f*df) / ((f0**2-f**2)**2 + (f*df)**2) + (D2*(f02**2-f**2) - C2*f*df2) / ((f02**2-f**2)**2 + (f*df2)**2)
+}
+if (fit_func==5){
+  X(f) = A - f*(D*(f0**2-f**2) - C*f*df) / ((f0**2-f**2)**2 + (f*df)**2) - f*(D2*(f02**2-f**2) - C2*f*df2) / ((f02**2-f**2)**2 + (f*df2)**2)
+  Y(f) = B + f*(C*(f0**2-f**2) + D*f*df) / ((f0**2-f**2)**2 + (f*df)**2) + f*(C2*(f02**2-f**2) + D2*f*df2) / ((f02**2-f**2)**2 + (f*df2)**2)
+}
 
 set nokey
 set samples 1000
@@ -58,6 +60,5 @@ plot [f0-5*df:f0+5*df]\
 pause -1
 
 EOF
-}
 
 chmod 755 $ofile
