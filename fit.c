@@ -372,13 +372,19 @@ fit_res_init (const size_t n, const size_t p,
          double * freq, double * real, double * imag,
          double pars[MAXPARS], fit_func_t fit_func) {
 
+  // points with min/max freq
+  size_t ifmin=0, ifmax = 0;
+  for (size_t i = 0; i<n; i++) {
+    if (freq[i] < freq[ifmin]) ifmin = i;
+    if (freq[i] > freq[ifmax]) ifmax = i;
+  }
 
-  // A,B - in the middle between first and last point:
-  double A = (real[0] + real[n-1])/2;
-  double B = (imag[0] + imag[n-1])/2;
+  // A,B - in the middle between these points:
+  double A = (real[ifmin] + real[ifmax])/2;
+  double B = (imag[ifmin] + imag[ifmax])/2;
 
   // Find furthest point from (A,B),
-  // It should be the resonance
+  // It should be the resonance.
   double dmax=0;
   size_t imax=0;
   for (size_t i = 0; i<n; i++) {
@@ -387,18 +393,16 @@ fit_res_init (const size_t n, const size_t p,
   }
   double w0 = freq[imax];
 
-  // Find dmax/sqrt(2) distance. It should be
-  // maxima of dispersion component
-  int ih1=0, ih2=n-1;
-  for (size_t i = 0; i<imax; i++) {
+  // Find min/max freq where distance > dmax/sqrt(2).
+  // This is resonance width.
+  size_t idmin=imax, idmax=imax;
+  double d0 = dmax/sqrt(2.0);
+  for (size_t i = 0; i<n; i++) {
     double d = hypot(real[i]-A, imag[i]-B);
-    if (d>dmax/sqrt(2)) {ih1=i; break;}
+    if (d>d0 && freq[i] < freq[idmin]) idmin = i;
+    if (d>d0 && freq[i] > freq[idmax]) idmax = i;
   }
-  for (size_t i = n-1; i>=imax; i--) {
-    double d = hypot(real[i]-A, imag[i]-B);
-    if (d>dmax/sqrt(2)) {ih2=i; break;}
-  }
-  double dw = fabs(freq[ih2]-freq[ih1]);
+  double dw = freq[idmax]-freq[idmin];
 
   // amplitudes:
   double D =  freq[imax]*dw*(real[imax]-A);
@@ -407,7 +411,6 @@ fit_res_init (const size_t n, const size_t p,
   // E,F - slope of the line connecting first and line points
   double E = (real[n-1] - real[0])/(freq[n-1] - freq[0]);
   double F = (imag[n-1] - imag[0])/(freq[n-1] - freq[0]);
-
 
   // fill parameters
   pars[0] = A; pars[1] = B;
