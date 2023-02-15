@@ -405,8 +405,17 @@ fit_res_init (const size_t n, const size_t p,
   double dw = freq[idmax]-freq[idmin];
 
   // amplitudes:
-  double D =  freq[imax]*dw*(real[imax]-A);
-  double C = -freq[imax]*dw*(imag[imax]-B);
+  double C,D;
+  if (fit_func==OSCX_COFFS ||
+      fit_func == OSCX_LOFFS ||
+      fit_func==DOSCX_COFFS){ // coordinate
+    C = -freq[imax]*dw*(imag[imax]-B);
+    D =  freq[imax]*dw*(real[imax]-A);
+  }
+  else { // velocity
+    C = dw*(real[imax]-A);
+    D = dw*(imag[imax]-B);
+  }
 
   // E,F - slope of the line connecting first and line points
   double E = (real[n-1] - real[0])/(freq[n-1] - freq[0]);
