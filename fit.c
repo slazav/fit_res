@@ -7,7 +7,6 @@
 //#include <gsl/gsl_rng.h>
 //#include <gsl/gsl_randist.h>
 #include "fit.h"
-
 /********************************************************************/
 
 // modified Gaussian example from
@@ -401,6 +400,10 @@ fit_res_init (const size_t n, const size_t p,
     double d = hypot(real[i]-A, imag[i]-B);
     if (d>d0 && freq[i] < freq[idmin]) idmin = i;
     if (d>d0 && freq[i] > freq[idmax]) idmax = i;
+  }
+  if (idmin == idmax) {
+    if (idmin>0)  idmin--;
+    if (idmax<n-1) idmax++;
   }
   double dw = freq[idmax]-freq[idmin];
 
