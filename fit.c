@@ -35,6 +35,7 @@ func_f (const gsl_vector * x, void *params, gsl_vector * f) {
   double D2 = (x->size == 10) ? gsl_vector_get(x, 7) : 0.0;
   double w02 = (x->size == 10) ? gsl_vector_get(x, 8) : 0.0;
   double dw2 = (x->size == 10) ? gsl_vector_get(x, 9) : 0.0;
+
   size_t i;
   for (i = 0; i < d->n; ++i) {
     double wi = d->w[i];
@@ -407,18 +408,10 @@ fit_res_init (const size_t n, const size_t p,
   }
   double dw = freq[idmax]-freq[idmin];
 
-  // amplitudes:
+  // amplitudes (coord):
   double C,D;
-  if (fit_func==OSCX_COFFS ||
-      fit_func == OSCX_LOFFS ||
-      fit_func==DOSCX_COFFS){ // coordinate
-    C = -freq[imax]*dw*(imag[imax]-B);
-    D =  freq[imax]*dw*(real[imax]-A);
-  }
-  else { // velocity
-    C = dw*(real[imax]-A);
-    D = dw*(imag[imax]-B);
-  }
+  C = -freq[imax]*dw*(imag[imax]-B);
+  D =  freq[imax]*dw*(real[imax]-A);
 
   // E,F - slope of the line connecting first and line points
   double E = (real[n-1] - real[0])/(freq[n-1] - freq[0]);

@@ -29,11 +29,13 @@ enum fit_func_t {
   OSCV_LOFFS=3,
 
   // Double resonance, coordinate response, constant offset
-  // X(w) = .. - w*(D2*(w02^2-w^2) - C2*w*dw2) / ((w02^2-w^2)^2 + (w*dw2)^2)
-  // Y(w) = .. + w*(C2*(w02^2-w^2) + D2*w*dw2) / ((w02^2-w^2)^2 + (w*dw2)^2)
+  // X(w) = .. + (C2*(w02^2-w^2) + D2*w*dw2) / ((w02^2-w^2)^2 + (w*dw2)^2)
+  // Y(w) = .. + (D2*(w02^2-w^2) - C2*w*dw2) / ((w02^2-w^2)^2 + (w*dw2)^2)
   DOSCX_COFFS=4,
 
   // Double resonance, velocity response, constant offset
+  // X(w) = .. - w*(D2*(w02^2-w^2) - C2*w*dw2) / ((w02^2-w^2)^2 + (w*dw2)^2)
+  // Y(w) = .. + w*(C2*(w02^2-w^2) + D2*w*dw2) / ((w02^2-w^2)^2 + (w*dw2)^2)
   DOSCV_COFFS=5,
 };
 

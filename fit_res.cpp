@@ -103,7 +103,8 @@ main (int argc, char *argv[]) {
   std::vector<double> pars(MAXPARS), pars_e(MAXPARS);
 
   // Read data (t,f,x,y), find max/min values
-  double maxx=-INFINITY, maxy=-INFINITY, minx=INFINITY, miny=INFINITY;
+  double maxx=-INFINITY, maxy=-INFINITY, maxf=-INFINITY;
+  double minx=INFINITY, miny=INFINITY, minf=INFINITY;
   while (!std::cin.eof()){
     std::string l;
     getline(std::cin, l);
@@ -120,8 +121,10 @@ main (int argc, char *argv[]) {
     // find max/min values
     if (x>maxx) maxx=x;
     if (y>maxy) maxy=y;
+    if (f>maxf) maxf=f;
     if (x<minx) minx=x;
     if (y<miny) miny=y;
+    if (f<minf) minf=f;
   }
   // for overload detection
   double maxax=std::max(fabs(maxx),fabs(minx));
@@ -133,17 +136,24 @@ main (int argc, char *argv[]) {
   // shift/scale data
   double x0 = (maxx+minx)/2;
   double y0 = (maxy+miny)/2;
-  double s = std::min(maxx-minx, maxy-miny);
+  double sa = std::min(maxx-minx, maxy-miny);
+  double sf = (maxf+minf)/2;
   for (size_t i=0; i<freq.size(); i++){
-    real[i] = (real[i]-x0)/s;
-    imag[i] = (imag[i]-y0)/s;
+    real[i] = (real[i]-x0)/sa;
+    imag[i] = (imag[i]-y0)/sa;
+    freq[i] = freq[i]/sf;
   }
 
   // initial guess:
   fit_res_init(freq.size(), p,
      freq.data(), real.data(), imag.data(),
      pars.data(), fit_func);
-  pars[0]=pars[1]=1e-6; // avoid zero values in init.cond
+
+  // avoid zero values in init.cond
+  if (fabs(pars[0]) < 1e-6) pars[0] = 1e-6;
+  if (fabs(pars[1]) < 1e-6) pars[1] = 1e-6;
+  if (fabs(pars[6]) < 1e-6) pars[6] = 1e-6;
+  if (fabs(pars[7]) < 1e-6) pars[7] = 1e-6;
 
   // fit
   double func_e = 0;
@@ -158,7 +168,8 @@ main (int argc, char *argv[]) {
       std::vector<double> freq1, real1, imag1;
       std::vector<double> pars1(pars), pars_e1(MAXPARS);
       for (int i=0; i<freq.size(); i++){
-        if (fabs(real[i]*s+x0) > maxax*0.95 || fabs(imag[i]*s+y0) > maxay*0.95) continue;
+        if (fabs(real[i]*sa+x0) > maxax*0.95 ||
+            fabs(imag[i]*sa+y0) > maxay*0.95) continue;
         freq1.push_back(freq[i]);
         real1.push_back(real[i]);
         imag1.push_back(imag[i]);
@@ -177,21 +188,35 @@ main (int argc, char *argv[]) {
   }
 
   // shift/scale back
-  func_e *= s;
-  pars[0] = (pars[0]*s)+x0;
-  pars[1] = (pars[1]*s)+y0;
-  pars[2] = pars[2]*s;
-  pars[3] = pars[3]*s;
+  func_e *= sa;
+  pars[0] = (pars[0]*sa)+x0;  pars_e[0] *= sa;
+  pars[1] = (pars[1]*sa)+y0;  pars_e[1] *= sa;
+  if (coord) {
+    pars[2] *= sa*sf*sf; pars_e[2] *= sa*sf*sf;
+    pars[3] *= sa*sf*sf; pars_e[3] *= sa*sf*sf;
+  }
+  else {
+    pars[2] *= sa*sf; pars_e[2] *= sa*sf;
+    pars[3] *= sa*sf; pars_e[3] *= sa*sf;
+  }
+  pars[4] *= sf; pars_e[4] *= sf;
+  pars[5] *= sf; pars_e[5] *= sf;
 
-  pars_e[0] = pars_e[0]*s;
-  pars_e[1] = pars_e[1]*s;
-  pars_e[2] = pars_e[2]*s;
-  pars_e[3] = pars_e[3]*s;
-  if (p==8 || p==10){
-    pars[6] = pars[6]*s;
-    pars[7] = pars[7]*s;
-    pars_e[6] = pars_e[6]*s;
-    pars_e[7] = pars_e[7]*s;
+  if (p==8){
+    pars[6] *= sa/sf; pars_e[6] *= sa/sf;
+    pars[7] *= sa/sf; pars_e[7] *= sa/sf;
+  }
+  if (p==10){
+    if (coord) {
+      pars[6] *= sa*sf*sf; pars_e[6] *= sa*sf*sf;
+      pars[7] *= sa*sf*sf; pars_e[7] *= sa*sf*sf;
+    }
+    else {
+      pars[6] *= sa*sf; pars_e[6] *= sa*sf;
+      pars[7] *= sa*sf; pars_e[7] *= sa*sf;
+    }
+    pars[8] *= sf; pars_e[8] *= sf;
+    pars[9] *= sf; pars_e[9] *= sf;
   }
 
   double t = (*time.begin() + *time.rbegin())/2;
