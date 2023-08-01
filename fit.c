@@ -383,12 +383,17 @@ fit_res_init (const size_t n, const size_t p,
   double A = (real[ifmin] + real[ifmax])/2;
   double B = (imag[ifmin] + imag[ifmax])/2;
 
-  // Find furthest point from (A,B),
+  // E,F - slope of the line connecting first and list points
+  double E = (real[ifmax] - real[ifmin])/(freq[ifmax] - freq[ifmin]);
+  double F = (imag[ifmax] - imag[ifmin])/(freq[ifmax] - freq[ifmin]);
+
+  // Find furthest point from the line connecting these points,
   // It should be the resonance.
   double dmax=0;
   size_t imax=0;
   for (size_t i = 0; i<n; i++) {
-    double d = hypot(real[i]-A, imag[i]-B);
+    double d = hypot(real[i] - real[ifmin] - (freq[i]-freq[ifmin])*E,
+                     imag[i] - imag[ifmin] - (freq[i]-freq[ifmin])*F);
     if (d>dmax) {dmax=d; imax=i;}
   }
   double w0 = freq[imax];
@@ -398,7 +403,8 @@ fit_res_init (const size_t n, const size_t p,
   size_t idmin=imax, idmax=imax;
   double d0 = dmax/sqrt(2.0);
   for (size_t i = 0; i<n; i++) {
-    double d = hypot(real[i]-A, imag[i]-B);
+    double d = hypot(real[i] - real[ifmin] - (freq[i]-freq[ifmin])*E,
+                     imag[i] - imag[ifmin] - (freq[i]-freq[ifmin])*F);
     if (d>d0 && freq[i] < freq[idmin]) idmin = i;
     if (d>d0 && freq[i] > freq[idmax]) idmax = i;
   }
@@ -412,10 +418,6 @@ fit_res_init (const size_t n, const size_t p,
   double C,D;
   C = -freq[imax]*dw*(imag[imax]-B);
   D =  freq[imax]*dw*(real[imax]-A);
-
-  // E,F - slope of the line connecting first and line points
-  double E = (real[n-1] - real[0])/(freq[n-1] - freq[0]);
-  double F = (imag[n-1] - imag[0])/(freq[n-1] - freq[0]);
 
   // fill parameters
   pars[0] = A; pars[1] = B;
