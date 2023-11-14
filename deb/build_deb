@@ -1,0 +1,27 @@
+#!/bin/sh -efu
+
+# Script for building debian package
+
+
+name=fit_res
+ver=1.1.1
+DIR="$name-$ver"
+
+rm -rf -- "$DIR"
+mkdir "$DIR"
+cd "$DIR"
+
+git clone ../../ .
+git checkout --detach $ver
+
+rm -rf .git .gear
+
+mkdir debian
+for f in changelog control copyright rules; do
+  sed 's/${ver}/'$ver'/g' ../$f > debian/$f
+done
+
+dpkg-buildpackage
+
+cd ..
+rm -rf -- "$DIR"
