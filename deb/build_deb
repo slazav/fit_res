@@ -1,10 +1,8 @@
 #!/bin/sh -efu
 
-# Script for building debian package
-
-
 name=fit_res
-ver=1.1.1
+ver=1.1
+tag=
 DIR="$name-$ver"
 
 rm -rf -- "$DIR"
@@ -12,7 +10,7 @@ mkdir "$DIR"
 cd "$DIR"
 
 git clone ../../ .
-git checkout --detach $ver
+[ "$tag" = "" ]  || git checkout --detach $tag
 
 rm -rf .git .gear
 
@@ -21,7 +19,7 @@ for f in changelog control copyright rules; do
   sed 's/${ver}/'$ver'/g' ../$f > debian/$f
 done
 
-dpkg-buildpackage
+dpkg-buildpackage --build=any
 
 cd ..
 rm -rf -- "$DIR"
