@@ -3,7 +3,7 @@ Section: System
 Priority: optional
 Maintainer: Vladislav Zavjalov <vl.zavjalov@gmail.com>
 Build-Depends: libgsl-dev
-Standards-Version: ${ver}
+Standards-Version: 4.0.0
 
 Package: fit-res
 Architecture: any
